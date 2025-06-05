@@ -1,0 +1,11 @@
+# Google Analytics & Search Console Configuration
+# Copy this file to .env and fill in your actual values
+
+# Path to your Google service account JSON credentials file
+ANALYTICS_CREDENTIALS_PATH=/path/to/your/service-account-credentials.json
+
+# Your Google Search Console site URL (e.g., https://example.com)
+GSC_SITE_URL=https://your-website.com
+
+# Your Google Analytics 4 Property ID (e.g., 123456789)
+GA4_PROPERTY_ID=your-ga4-property-id 
