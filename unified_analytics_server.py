@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Unified Google Analytics MCP Server
-Provides access to both GSC and GA4 data through the Model Context Protocol
+Unified Google Analytics MCP Server - MINIMAL MULTI-SITE CHANGES
+Only modified the parts needed to support both sites
 """
 
 import json
@@ -38,18 +38,32 @@ except ImportError:
         pass
 
 class UnifiedAnalyticsMCPServer:
-    def __init__(self, credentials_path: str, site_url: str, ga4_property_id: str):
+    def __init__(self, credentials_path: str):
         """
         Initialize the Unified Analytics MCP Server
         
         Args:
             credentials_path: Path to Google service account JSON file
-            site_url: The website URL registered in Search Console (e.g., 'https://example.com/')
-            ga4_property_id: GA4 property ID (just the number, e.g., '123456789')
         """
         self.credentials_path = credentials_path
-        self.site_url = site_url
-        self.ga4_property_id = ga4_property_id
+        
+        # CHANGE 1: Read both sites from environment variables
+        self.sites = {
+            'vesivanov': {
+                'gsc_url': os.environ.get('GSC_SITE_URL', 'sc-domain:vesivanov.com'),
+                'ga4_property_id': os.environ.get('GA4_PROPERTY_ID', '487808497')
+            },
+            'mebelcenter': {
+                'gsc_url': os.environ.get('MEBELCENTER_GSC_URL', 'sc-domain:mebelcenter.bg'),
+                'ga4_property_id': os.environ.get('MEBELCENTER_GA4_PROPERTY_ID')
+            }
+        }
+        
+        # Validate that we have both sites configured
+        if not self.sites['mebelcenter']['ga4_property_id']:
+            print("[ERROR] MEBELCENTER_GA4_PROPERTY_ID environment variable is required", file=sys.stderr)
+            sys.exit(1)
+        
         self.gsc_service = None
         self.ga4_client = None
         self.server = Server("unified-analytics-mcp-server")
@@ -64,13 +78,19 @@ class UnifiedAnalyticsMCPServer:
         async def handle_list_tools() -> List[Tool]:
             """List available analytics tools"""
             return [
-                # GSC Tools
+                # GSC Tools - CHANGE 2: Add site parameter to all tools
                 Tool(
                     name="gsc_search_analytics",
                     description="Get Google Search Console search analytics data",
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"},
                             "dimensions": {
@@ -89,6 +109,12 @@ class UnifiedAnalyticsMCPServer:
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"},
                             "limit": {"type": "integer", "description": "Number of queries (default 50)", "default": 50}
@@ -97,13 +123,19 @@ class UnifiedAnalyticsMCPServer:
                     }
                 ),
                 
-                # GA4 Tools
+                # GA4 Tools - CHANGE 2: Add site parameter to all tools
                 Tool(
                     name="ga4_traffic_overview",
                     description="Get GA4 traffic overview with key metrics",
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"}
                         },
@@ -116,6 +148,12 @@ class UnifiedAnalyticsMCPServer:
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"},
                             "metric": {
@@ -135,6 +173,12 @@ class UnifiedAnalyticsMCPServer:
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"},
                             "limit": {"type": "integer", "description": "Number of sources", "default": 25}
@@ -143,13 +187,19 @@ class UnifiedAnalyticsMCPServer:
                     }
                 ),
                 
-                # Combined Analysis Tools
+                # Combined Analysis Tools - CHANGE 2: Add site parameter
                 Tool(
                     name="combined_performance_report",
                     description="Combined GSC + GA4 performance analysis for a date range",
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"}
                         },
@@ -162,6 +212,12 @@ class UnifiedAnalyticsMCPServer:
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "site": {
+                                "type": "string",
+                                "enum": ["vesivanov", "mebelcenter"],
+                                "description": "Which site to analyze: vesivanov or mebelcenter",
+                                "default": "vesivanov"
+                            },
                             "page_path": {"type": "string", "description": "Page path to analyze (e.g., '/blog/article')"},
                             "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
                             "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"}
@@ -205,32 +261,23 @@ class UnifiedAnalyticsMCPServer:
         @self.server.list_resources()
         async def handle_list_resources() -> List[Resource]:
             """List available analytics resources"""
-            return [
-                Resource(
-                    uri="analytics://dashboard/today",
-                    name="Today's Analytics Dashboard",
-                    description="Combined GSC + GA4 data for today",
-                    mimeType="application/json"
-                ),
-                Resource(
-                    uri="analytics://dashboard/yesterday",
-                    name="Yesterday's Analytics Dashboard", 
-                    description="Complete analytics overview for yesterday",
-                    mimeType="application/json"
-                ),
-                Resource(
-                    uri="analytics://dashboard/week",
-                    name="Weekly Analytics Dashboard",
-                    description="7-day performance summary",
-                    mimeType="application/json"
-                ),
-                Resource(
-                    uri="analytics://dashboard/month",
-                    name="Monthly Analytics Dashboard",
-                    description="30-day performance summary",
-                    mimeType="application/json"
-                )
-            ]
+            resources = []
+            for site in ['vesivanov', 'mebelcenter']:
+                for period, description in [
+                    ("today", "Today's Analytics Dashboard"),
+                    ("yesterday", "Yesterday's Analytics Dashboard"),
+                    ("week", "Weekly Analytics Dashboard"),
+                    ("month", "Monthly Analytics Dashboard")
+                ]:
+                    resources.append(
+                        Resource(
+                            uri=f"analytics://dashboard/{period}/{site}",
+                            name=f"{description} - {site.title()}",
+                            description=f"Complete analytics overview for {site} - {period}",
+                            mimeType="application/json"
+                        )
+                    )
+            return resources
         
         @self.server.read_resource()
         async def handle_read_resource(uri: str) -> str:
@@ -241,31 +288,34 @@ class UnifiedAnalyticsMCPServer:
             try:
                 today = datetime.now().date()
                 
-                if uri == "analytics://dashboard/today":
-                    result = await self._combined_performance_report(
-                        start_date=today.isoformat(),
-                        end_date=today.isoformat()
-                    )
-                elif uri == "analytics://dashboard/yesterday":
+                # Parse URI: analytics://dashboard/period/site
+                parts = uri.split('/')
+                if len(parts) < 5:
+                    raise ValueError(f"Invalid resource URI format: {uri}")
+                
+                period = parts[3]
+                site = parts[4]
+                
+                # Calculate date range
+                if period == "today":
+                    start_date = end_date = today.isoformat()
+                elif period == "yesterday":
                     yesterday = today - timedelta(days=1)
-                    result = await self._combined_performance_report(
-                        start_date=yesterday.isoformat(),
-                        end_date=yesterday.isoformat()
-                    )
-                elif uri == "analytics://dashboard/week":
-                    start_date = today - timedelta(days=7)
-                    result = await self._combined_performance_report(
-                        start_date=start_date.isoformat(),
-                        end_date=today.isoformat()
-                    )
-                elif uri == "analytics://dashboard/month":
-                    start_date = today - timedelta(days=30)
-                    result = await self._combined_performance_report(
-                        start_date=start_date.isoformat(),
-                        end_date=today.isoformat()
-                    )
+                    start_date = end_date = yesterday.isoformat()
+                elif period == "week":
+                    start_date = (today - timedelta(days=7)).isoformat()
+                    end_date = today.isoformat()
+                elif period == "month":
+                    start_date = (today - timedelta(days=30)).isoformat()
+                    end_date = today.isoformat()
                 else:
-                    raise ValueError(f"Unknown resource URI: {uri}")
+                    raise ValueError(f"Unknown period: {period}")
+                
+                result = await self._combined_performance_report(
+                    site=site,
+                    start_date=start_date,
+                    end_date=end_date
+                )
                 
                 return json.dumps(result, indent=2)
                 
@@ -306,11 +356,16 @@ class UnifiedAnalyticsMCPServer:
             print(f"[ERROR] {error_msg}", file=sys.stderr)
             raise Exception(error_msg)
     
-    # GSC Methods
+    # CHANGE 3: Modify methods to accept site parameter and use site config
     async def _gsc_search_analytics(self, start_date: str, end_date: str, 
+                                   site: str = "vesivanov",
                                    dimensions: Optional[List[str]] = None,
                                    row_limit: int = 1000) -> Dict[str, Any]:
         """Get GSC search analytics data"""
+        
+        # CHANGE 3a: Get site-specific URL
+        site_url = self.sites[site]['gsc_url']
+        
         request_body = {
             'startDate': start_date,
             'endDate': end_date,
@@ -322,14 +377,15 @@ class UnifiedAnalyticsMCPServer:
         
         try:
             request = self.gsc_service.searchanalytics().query(
-                siteUrl=self.site_url,
+                siteUrl=site_url,
                 body=request_body
             )
             response = request.execute()
             
             return {
                 'source': 'Google Search Console',
-                'site_url': self.site_url,
+                'site': site,
+                'site_url': site_url,
                 'date_range': f"{start_date} to {end_date}",
                 'total_rows': len(response.get('rows', [])),
                 'dimensions': dimensions or [],
@@ -339,22 +395,29 @@ class UnifiedAnalyticsMCPServer:
         except HttpError as e:
             raise Exception(f"GSC API error: {str(e)}")
     
-    async def _gsc_top_queries(self, start_date: str, end_date: str, limit: int = 50) -> Dict[str, Any]:
+    async def _gsc_top_queries(self, start_date: str, end_date: str, 
+                              site: str = "vesivanov", limit: int = 50) -> Dict[str, Any]:
         """Get top queries from GSC"""
         return await self._gsc_search_analytics(
             start_date=start_date,
             end_date=end_date,
+            site=site,
             dimensions=['query'],
             row_limit=limit
         )
     
-    # GA4 Methods
+    # GA4 Methods - CHANGE 3: Add site parameter
     async def _ga4_run_report(self, dimensions: List[str], metrics: List[str], 
-                             start_date: str, end_date: str, limit: int = 100) -> Dict[str, Any]:
+                             start_date: str, end_date: str, 
+                             site: str = "vesivanov", limit: int = 100) -> Dict[str, Any]:
         """Run a GA4 report"""
+        
+        # CHANGE 3b: Get site-specific property ID
+        property_id = self.sites[site]['ga4_property_id']
+        
         try:
             request = RunReportRequest(
-                property=f"properties/{self.ga4_property_id}",
+                property=f"properties/{property_id}",
                 dimensions=[Dimension(name=dim) for dim in dimensions],
                 metrics=[Metric(name=metric) for metric in metrics],
                 date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
@@ -379,7 +442,8 @@ class UnifiedAnalyticsMCPServer:
             
             return {
                 'source': 'Google Analytics 4',
-                'property_id': self.ga4_property_id,
+                'site': site,
+                'property_id': property_id,
                 'date_range': f"{start_date} to {end_date}",
                 'dimensions': dimensions,
                 'metrics': metrics,
@@ -389,14 +453,15 @@ class UnifiedAnalyticsMCPServer:
         except Exception as e:
             raise Exception(f"GA4 API error: {str(e)}")
     
-    async def _ga4_traffic_overview(self, start_date: str, end_date: str) -> Dict[str, Any]:
+    async def _ga4_traffic_overview(self, start_date: str, end_date: str, 
+                                   site: str = "vesivanov") -> Dict[str, Any]:
         """Get GA4 traffic overview"""
         metrics = [
             "sessions", "totalUsers", "newUsers", "screenPageViews", 
             "bounceRate", "averageSessionDuration", "sessionsPerUser"
         ]
         
-        result = await self._ga4_run_report([], metrics, start_date, end_date, 1)
+        result = await self._ga4_run_report([], metrics, start_date, end_date, site, 1)
         
         if result['data']:
             overview = result['data'][0]
@@ -406,44 +471,48 @@ class UnifiedAnalyticsMCPServer:
         return result
     
     async def _ga4_top_pages(self, start_date: str, end_date: str, 
+                            site: str = "vesivanov",
                             metric: str = "screenPageViews", limit: int = 20) -> Dict[str, Any]:
         """Get top pages from GA4"""
         dimensions = ["pagePath", "pageTitle"]
         metrics = [metric, "sessions", "totalUsers", "bounceRate"]
         
-        return await self._ga4_run_report(dimensions, metrics, start_date, end_date, limit)
+        return await self._ga4_run_report(dimensions, metrics, start_date, end_date, site, limit)
     
     async def _ga4_acquisition_report(self, start_date: str, end_date: str, 
-                                     limit: int = 25) -> Dict[str, Any]:
+                                     site: str = "vesivanov", limit: int = 25) -> Dict[str, Any]:
         """Get GA4 acquisition data"""
         dimensions = ["sessionSource", "sessionMedium"]
         metrics = ["sessions", "totalUsers", "newUsers", "bounceRate", "averageSessionDuration"]
         
-        return await self._ga4_run_report(dimensions, metrics, start_date, end_date, limit)
+        return await self._ga4_run_report(dimensions, metrics, start_date, end_date, site, limit)
     
-    # Combined Analysis Methods
-    async def _combined_performance_report(self, start_date: str, end_date: str) -> Dict[str, Any]:
+    # Combined Analysis Methods - CHANGE 3: Add site parameter
+    async def _combined_performance_report(self, start_date: str, end_date: str, 
+                                          site: str = "vesivanov") -> Dict[str, Any]:
         """Generate combined GSC + GA4 performance report"""
         
         # Get GSC data
         gsc_data = await self._gsc_search_analytics(
             start_date=start_date,
             end_date=end_date,
+            site=site,
             dimensions=['query'],
             row_limit=20
         )
         
         # Get GA4 overview
-        ga4_overview = await self._ga4_traffic_overview(start_date, end_date)
+        ga4_overview = await self._ga4_traffic_overview(start_date, end_date, site)
         
         # Get top pages from GA4
-        ga4_pages = await self._ga4_top_pages(start_date, end_date, limit=10)
+        ga4_pages = await self._ga4_top_pages(start_date, end_date, site, limit=10)
         
         # Get acquisition data
-        ga4_acquisition = await self._ga4_acquisition_report(start_date, end_date, limit=10)
+        ga4_acquisition = await self._ga4_acquisition_report(start_date, end_date, site, limit=10)
         
         return {
             'report_type': 'Combined Performance Report',
+            'site': site,
             'date_range': f"{start_date} to {end_date}",
             'search_console': {
                 'top_queries': gsc_data.get('data', [])[:10]
@@ -455,13 +524,15 @@ class UnifiedAnalyticsMCPServer:
             }
         }
     
-    async def _page_analysis(self, page_path: str, start_date: str, end_date: str) -> Dict[str, Any]:
+    async def _page_analysis(self, page_path: str, start_date: str, end_date: str, 
+                            site: str = "vesivanov") -> Dict[str, Any]:
         """Analyze specific page across both GSC and GA4"""
         
         # GSC data for specific page
         gsc_page_data = await self._gsc_search_analytics(
             start_date=start_date,
             end_date=end_date,
+            site=site,
             dimensions=['page', 'query'],
             row_limit=100
         )
@@ -475,9 +546,10 @@ class UnifiedAnalyticsMCPServer:
         # GA4 data for specific page
         ga4_page_data = await self._ga4_run_report(
             dimensions=["pagePath"],
-            metrics=["screenPageViews", "sessions", "users", "bounceRate", "averageSessionDuration"],
+            metrics=["screenPageViews", "sessions", "totalUsers", "bounceRate", "averageSessionDuration"],
             start_date=start_date,
             end_date=end_date,
+            site=site,
             limit=1000
         )
         
@@ -488,6 +560,7 @@ class UnifiedAnalyticsMCPServer:
         ]
         
         return {
+            'site': site,
             'page_path': page_path,
             'date_range': f"{start_date} to {end_date}",
             'search_console': {
@@ -510,23 +583,11 @@ async def main():
     
     # Configuration - get from environment variables
     credentials_path = os.environ.get('ANALYTICS_CREDENTIALS_PATH')
-    site_url = os.environ.get('GSC_SITE_URL')
-    ga4_property_id = os.environ.get('GA4_PROPERTY_ID')
     
     print(f"[INFO] Credentials path: {credentials_path}")
-    print(f"[INFO] Site URL: {site_url}")
-    print(f"[INFO] GA4 Property ID: {ga4_property_id}")
     
     if not credentials_path:
         print("[ERROR] Error: ANALYTICS_CREDENTIALS_PATH environment variable is required", file=sys.stderr)
-        sys.exit(1)
-    
-    if not site_url:
-        print("[ERROR] Error: GSC_SITE_URL environment variable is required", file=sys.stderr)
-        sys.exit(1)
-    
-    if not ga4_property_id:
-        print("[ERROR] Error: GA4_PROPERTY_ID environment variable is required", file=sys.stderr)
         sys.exit(1)
     
     if not os.path.exists(credentials_path):
@@ -552,8 +613,9 @@ async def main():
     # Create and run server
     print("[INFO] Creating analytics server...")
     try:
-        analytics_server = UnifiedAnalyticsMCPServer(credentials_path, site_url, ga4_property_id)
+        analytics_server = UnifiedAnalyticsMCPServer(credentials_path)
         print("[SUCCESS] Analytics server created successfully")
+        print(f"[INFO] Configured sites: vesivanov, mebelcenter")
     except Exception as e:
         print(f"[ERROR] Error creating server: {e}", file=sys.stderr)
         sys.exit(1)
